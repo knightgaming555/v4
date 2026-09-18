@@ -6,7 +6,8 @@
 # cadence costs nothing and the private repo's own quota stays untouched.
 #
 # Required secrets : SOURCE_REPO_PAT, REDIS_URL, ENCRYPTION_KEY
-# Required variable: SOURCE_REPO  (e.g. "yourname/V4-GUCAPI")
+# Required variable: SOURCE_REPO  ->  owner/name ONLY, e.g. "yourname/V4-GUCAPI"
+#   A URL ("https://github.com/yourname/V4-GUCAPI") is REJECTED by checkout.
 # Where each value comes from -> README.md
 #
 # NOTE: this file must live at .github/workflows/refresh-cache.yml on the
@@ -53,7 +54,12 @@ permissions:
 jobs:
   refresh_sections:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    # A full all-users sweep runs every scrape through the sequential
+    # requests_ntlm fallback (the runner's libcurl has no NTLM), so wall-clock
+    # is dominated by NTLM handshakes and by the retry/backoff on users whose
+    # credentials upstream rejects. Measured runs blew past 14 minutes; a bad
+    # day with many 401s can approach an hour. 180 is the budget, not the norm.
+    timeout-minutes: 180
     steps:
       # Pinned to a commit SHA, not a tag: a mutable tag could be repointed at
       # malicious code that would then run with the secrets below in scope.
